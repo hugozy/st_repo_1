@@ -1,0 +1,178 @@
+{% assign pt_refine_text = 'Refine' %}
+{% assign pt_clear_text = 'clear' %}
+{% assign pt_view_all_text = 'view all' %}
+{% assign pt_collection_text = 'Collection' %}
+{% assign lowercase_current_tags = '' %}
+{% for tag in current_tags %}
+  {% assign lowercase_tag = tag | downcase %}
+  {% if lowercase_current_tags.size == 0 %}
+    {% assign lowercase_current_tags = lowercase_tag %}
+  {% else %}
+    {% assign lowercase_current_tags = lowercase_current_tags | append: '|' | append: lowercase_tag %}
+  {% endif %}
+{% endfor %}
+{% assign lowercase_current_tags = lowercase_current_tags | split: '|' %}
+<div class="mobile-filter-menu mobile-filter-selected-{{ collection.handle }}{% for tag in current_tags %} mobile-filter-selected-{{ tag | handleize }}{% endfor %} medium-up--hide">
+  <div class="filter-group filter-group-categories has_multiple_items" data-group="categories">
+    <label for="Category" class="collection-filter__label">Category</label>
+    <select name="Category" id="Category" class="collection-filter__input">
+      {% if collection.handle contains 'boutique_' or collection.handle contains 'womens-' or collection.handle contains 'mens-' or collection.handle == 'sale' or collection.handle == 'women' or collection.handle == 'men' %}
+        <option value="">All{% if collection.handle != "all" %}
+          {% if collection.handle contains "boutique_" %}
+            {{ collection.title | replace_first: "Boutique","From" }}
+          {% elsif collection.handle == 'sale' %}
+            Products on Sale
+          {% elsif collection.handle == 'women' or collection.handle == 'men' %}
+            {{ collection.title }}'s Products
+          {% else %}
+            {{ collection.title }}
+          {% endif %}
+        {% endif %}</option>
+      {% else %}
+        <option value="">All</option>
+      {% endif %}
+      {% assign collection_tags_string = collection.all_tags | join: '|' | prepend: '|' | append: '|' | downcase | replace: ' ','-' %}
+      {% for product_type in shop.types %}
+        {% assign product_type_string = product_type | downcase | prepend: '|' | append: '|' | | replace: ' ','-'%} 
+        {% assign lowercase_product_type = product_type | downcase %}
+        {% if collection_tags_string contains product_type_string %}
+          {% assign type_handle = product_type | replace: '|','' | handle %} 
+          {% for product in collections[type_handle].products %}   
+            {% if product.available == true %}
+              {% assign p_type_handle = product.type | handle %}
+              {% if p_type_handle == type_handle %}
+                <option value="{{ product_type }}"{% if lowercase_current_tags contains lowercase_product_type %} selected="selected"{% endif %}>{{ product_type | capitalize }}</option>
+                {% break %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      {% endfor %}
+    </select>
+  </div>
+  {% assign departments = shop.metafields.cettire.departments | split: ',' %}
+  {% capture downcase_vendors %}{% for v in collections.all.all_vendors %}|{{ v | downcase | handleize }}|{% endfor %}{% endcapture %}
+  {% assign vendor_match = '|' | append: collection.handle | append: '|' %}
+  {% assign show_departments = false %}
+  {% if collection.handle contains 'boutique_' and settings.department_enable %}
+    {% assign show_departments = true %}
+  {% elsif downcase_vendors contains vendor_match and settings.department_enable %}
+    {% assign show_departments = true %}
+  {% endif %}
+  {% if show_departments %}
+    <div class="filter-group filter-group-departments has_multiple_items" data-group="departments">
+      <label for="Department" class="collection-filter__label">{{ settings.department_title }}</label>
+      <select name="Department" id="Department" class="collection-filter__input">
+        {% assign collection_tags_string = collection.all_tags | join: '|' %}
+        {% assign collection_tags_string = '|' | append: collection_tags_string | append: '|' | downcase %}
+        {% for department in departments %}
+          {% assign department_string = department | handleize %}
+          {% assign lowercase_department_string = department_string | downcase %}
+          {% assign match_string = '|' | append: department_string | append: '|' %}
+          {% if collection_tags_string contains match_string %}
+            <option value="{{ department_string }}"{% if lowercase_current_tags contains lowercase_department_string %} selected="selected"{% endif %}>{{ department | capitalize }}</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+  {% endif %}
+  {% unless collection.handle != nil and template contains 'collection' %}
+    {% for menu_header in shop.metafields.pt_filter_menu %}
+      {% assign menu_items = menu_header.last | split: ',' %}
+      {% assign header_handle = menu_header.first | split: '-' %}
+      {% assign header_handle = menu_header.first | replace: header_handle.first, '' %}
+      <div class="filter-group filter-group{{ header_handle }}">
+        <label for="{{ header_handle }}" class="collection-filter__label">{{ shop.metafields.pt_filter_header[menu_header.first] }}</label>
+        <select name="{{ header_handle }}" id="{{ header_handle }}" class="collection-filter__input">
+          <option value="">All{% unless shop.metafields.pt_filter_header[menu_header.first] == 'all' %} {{ shop.metafields.pt_filter_header[menu_header.first] }}s{% endunless %}</option>
+          {% for menu_item in menu_items %}
+            {% assign filter_collection = collections[menu_item] %}
+            {% if filter_collection and filter_collection.all_products_count != '' and filter_collection.all_products_count > 0 and filter_collection.title != nil and filter_collection.title != '' %}
+              <option value="{{ menu_item }}"{% if current_tags contains menu_item %} selected="selected"{% endif %}>{{ filter_collection.title | escape }}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+    {% endfor %}
+  {% else%}
+    {% assign tag_list = collections.all.tags %}
+    {% assign useable_tag_list = collection.all_tags %}
+    {% assign current_collection_handle = collection.handle %}
+    {% assign displayed_collection_handles = '|' %}
+    {% if collection.metafields.sort_primary.collection_handle %}
+      {% assign current_collection_handle = collections[collection.metafields.sort_primary.collection_handle].handle %}
+    {% endif %}
+    {% for menu_header in shop.metafields.pt_filter_menu %}
+      {% assign header_handle = menu_header.first | split: '-' %}
+      {% assign header_handle = menu_header.first | replace: header_handle.first, '' %}
+      {% if settings.vendor_on_vendor %}
+        {% comment %}This will remove the designers filter from designer pages and the boutiques filter from boutiques pages{% endcomment %}
+          {% capture downcase_vendors %}{% for v in collections.all.all_vendors %}|{{ v | downcase | handleize }}|{% endfor %}{% endcapture %}
+          {% assign vendor_match = '|' | append: collection.handle | append: '|' %}
+          {% if collection.handle contains 'boutique_' and header_handle == '-boutique' %}
+            {% continue %}
+          {% elsif downcase_vendors contains vendor_match and header_handle == '-designer' %}
+            {% continue %}
+          {% endif %}
+        {% comment %}END OF: This will remove the designers filter from designer pages and the boutiques filter from boutiques pages{% endcomment %}
+      {% endif %}
+      {% assign has_items = false %}
+      {% assign has_multiple_items = false %}
+      {% assign has_selected = false %}
+      {% assign current_selected = '|' %}
+      {% assign menu_items = menu_header.last | split: ',' %}
+      {% for menu_item in menu_items %}
+        {% assign filter_collection = collections[menu_item] %}
+        {% if tag_list contains menu_item or current_tags contains menu_item or current_collection_handle == menu_item %}
+          {% if has_items %}
+            {% assign has_multiple_items = true %}
+          {% endif %}
+          {% assign has_items = true %}
+          {% if current_tags contains menu_item or current_collection_handle == menu_item %}
+            {% assign has_selected = true %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+      {% if has_items %}
+        {% assign group_name = header_handle | replace_first: '-', '' %}
+        <div class="filter-group filter-group{{ header_handle }} {% if has_selected %}has_group_selected{% endif %} {% if has_multiple_items %}has_multiple_items{% else %}has_single_item{% endif %}" data-group="{{ group_name }}">
+          <label for="{{ group_name }}" class="collection-filter__label">{{ shop.metafields.pt_filter_header[menu_header.first] }}</label>
+          <select name="{{ group_name }}" id="{{ group_name }}" class="collection-filter__input">
+            <option value="">All {{ shop.metafields.pt_filter_header[menu_header.first] }}s</option>
+            {% for menu_item in menu_items %}
+              {% assign filter_collection = collections[menu_item] %}
+              {% assign lowercase_menu_item = menu_item | downcase %}
+              {% if filter_collection and filter_collection.title != nil and filter_collection.title != '' %}
+                {% if useable_tag_list contains menu_item or current_tags contains menu_item or current_collection_handle == menu_item %}
+                  {% if current_tags contains menu_item or current_collection_handle == menu_item %}
+                    {% assign current_selected = current_selected | append: menu_item | append: '|' %}
+                  {% endif %}
+                  {% assign displayed_collection_handles = displayed_collection_handles | append: menu_item | append: '|' %}
+                  {% unless useable_tag_list contains menu_item or has_selected %}
+                    {% continue %}
+                  {% endunless %}
+                  {% if header_handle == '-boutique' %}
+                    {% assign filter_collection_title = '' %}
+                    {% assign filter_collection_title_split = filter_collection.title | split: ' '  %}
+                    {% for split in filter_collection_title_split %}
+                      {% if split != 'boutique' and split != 'Boutique' %}
+                        {% assign split_capitalized = split | capitalize %}
+                        {% assign filter_collection_title = filter_collection_title | append: split_capitalized | append: ' ' %}
+                      {% endif %}
+                    {% endfor %}
+                  {% else %}
+                    {% assign filter_collection_title = filter_collection.title %}
+                  {% endif %}
+                  <option value="{{ menu_item }}"{% if lowercase_current_tags contains lowercase_menu_item or collection.handle == menu_item %} selected="selected"{% endif %}>{{ filter_collection_title | escape }}</option>
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% endunless %}
+  <button type="submit" name="apply" id="ApplyFilter" class="btn btn--full">
+      <span id="ApplyFilterText">Apply</span>
+  </button>
+</div>

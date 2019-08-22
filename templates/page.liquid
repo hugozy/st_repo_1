@@ -1,0 +1,199 @@
+{% if settings.products_featured_collection != blank %}
+  {% if collections[settings.products_featured_collection].products_count != 0 %}
+    {% assign sidebar_enable = true %}
+  {% endif %}
+{% endif %}
+{% assign top_levels = shop.metafields.cettire.departments | split: ',' %}
+{% assign selected_department = false %}
+{% assign selected_category = false %}
+
+<header class="grid medium-up--grid--table section-header small--text-center">
+  <div class="grid__item medium-up--one-half section-header__item">
+    <a id="top" name="top" class="link_dest">
+      <h1 class="section-header__title">{{ page.title }}</h1>
+    </a>
+  </div>
+</header>
+
+<div class="grid">
+  <div class="grid__item{% if sidebar_enable %} medium-up--three-quarters large-up--four-fifths{% endif %}">
+    {% if page.content != blank %}
+      <div class="content-block content-block--large">
+        <div class="rte">
+          {{ page.content }}
+        </div>
+      </div>
+    {% endif %}
+
+    <form action="#" id="designer-filter-form" onsubmit="$('#designer-filter-input').blur();return false;" method="post" role="search" novalidate>
+      <button type="button" class="text-link">
+        {% include 'icon-search' %}
+        <span class="icon__fallback-text">Search</span>
+      </button>
+      <input type="text" id="designer-filter-input" required placeholder="Search Designers" aria-label="Search Designers" />
+      <button type="reset" class="btn-clear text-link">
+        {% include 'icon-close' %}
+        <span class="icon__fallback-text">Clear</span>
+      </button>
+    </form>
+
+    {% if page.handle == 'designers' %}
+      {% assign target_collection = collections.all %}
+      {% assign target_vendors = shop.vendors %}
+      {% assign contains_target_collection = "|" | append: collections.all.handle | append: "|" %}
+    {% else %}
+      {% assign subpageall_handle = page.handle | remove_first: 'designers-all-' %}
+      {% assign subpage_handle = subpageall_handle | remove_first: 'designers-' %}
+      {% assign target_collection = collections[subpage_handle] %}
+      {% assign target_vendors = target_collection.all_vendors %}
+      {% assign contains_target_collection = "|" | append: collections[subpage_handle].handle | append: "|" %}
+    {% endif %}
+
+    {% if subpageall_handle == null %}
+      {% assign department = "all" %}
+      {% assign category = null %}
+    {% elsif page.title contains "'s" and subpage_handle contains "s-" %}
+      {% assign sph_parts = subpage_handle | split: "s-" %}
+      {% assign department = sph_parts | first %}
+      {% assign category = sph_parts | last %}
+    {% elsif subpage_handle contains "s-" %}
+      {% assign sph_parts = subpage_handle | split: "-" %}
+      {% assign department = sph_parts | first %}
+      {% assign category = sph_parts | last %}
+    {% elsif subpageall_handle contains "-" %}
+      {% assign sph_parts = subpage_handle | split: "-" %}
+      {% assign department = sph_parts | last %}
+      {% assign category = null %}
+    {% else %}
+      {% assign department = "all" %}
+      {% assign category = subpageall_handle %}
+    {% endif %}
+
+    {% if settings.department_enable %}
+      {% if department != "all" %}
+        {% assign selected_department = department %}
+      {% endif %}
+      {% if category != null %}
+        {% assign selected_category = category %}
+      {% endif %}
+    {% endif %}
+    
+    {% assign used_letters = '' %}
+
+    <div style='display:none;'>
+      {{ shop.vendors | join: ' | ' }}
+    </div>
+    
+    <div class="filter-menu-container clearfix grid--rev">
+      <div class="designer-sort small--show-inline hide">
+        {% assign alphabets = 'abcdefghijklmnopqrstuvwxyz' | split: '' %}
+        <select name="alphabet-filter" id="alphabet-filter" class="designer-sort__input">
+          <option value="">Select by Alphabet</option>
+          <option value="#123">123</option>
+          {% for alpha in alphabets %}
+            <option value="{{ alpha }}">{{ alpha | upcase }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:none;">
+        {{ target_vendors | join: ' | ' }}
+      </div>      
+      <div class="designer-sort small--pull-right">
+        <select name="sub-designer-sort-by" id="sub-designer-sort-by" class="designer-sort__input">
+          <option value="" class="cat-all{% for top_level in top_levels %} cat-{{top_level}}{% endfor %}"{% if category == null %} selected="selected"{% endif %}>Category</option>
+          {% for level in top_levels %}
+            {% assign menu = linklists[level] %}
+            {% for childlink in menu.links %}
+              {% assign child_menu_size = linklists[childlink.handle] | size %}
+              {% if child_menu_size > 0 %}
+                <option value="{{ childlink.handle }}" {% if target_collection.handle == childlink.handle %}selected{% endif %} class="cat-{{ level }}">
+                {% assign level_prefix = level | append: "'s " | capitalize %}
+                {% assign remove_prefix_title = childlink.title | remove_first: level_prefix %}
+                {% assign level_prefix = level | append: "' " | capitalize %}
+                {% assign remove_prefix_title = remove_prefix_title | remove_first: level_prefix %}
+                {{ remove_prefix_title | capitalize }}
+              </option>
+              {% endif %}
+            {% endfor %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="designer-sort small--pull-right">
+        <select name="top-designer-sort-by" id="top-designer-sort-by" class="designer-sort__input">
+          <option value="all">All</option>
+          {% for level in top_levels %}
+            <option value="{{ level }}">{{ level | capitalize }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="alphabet-menu small--hide">
+      <a href="#123">123</a>
+      {% for alpha in alphabets %}
+        <a href="#{{ alpha }}">{{ alpha | upcase }}</a>
+      {% endfor %}
+    </div>
+
+    {% if target_collection.all_vendors | size > 0 %}
+      {% assign last_alphabet = nil %}
+      <div class="designer_group_container">
+        {% assign assigned_vendors = '|' %}
+        {% for product_vendor in target_vendors %}
+          {% if collections[product_vendor].products_count %}
+            {% assign current_alphabet = product_vendor | first | downcase %}            
+            {% assign is_alpha =  %}
+            {% if alphabets contains current_alphabet %}
+              {% comment %}This is an alphabet{% endcomment %}
+            {% else %}
+              {% comment %}For now assume anything not an alphabet will fall in here {% endcomment %}
+              {% assign current_alphabet = '123' %}
+            {% endif %}
+            
+            {% if current_alphabet != last_alphabet  %}
+              {% unless used_letters contains current_alphabet %}
+                {% if last_alphabet != nil %}
+                  </ul>
+                </div>
+                {% endif %}
+                <div class="designer_group">
+                  <a name="{{ current_alphabet }}" class="link_dest">
+                    <h2>{{ current_alphabet | upcase }}</h2>
+                  </a>
+                  <ul>
+                {% assign last_alphabet = current_alphabet %}
+                {% assign used_letters = used_letters | append: current_alphabet %}
+              {% endunless %}
+            {% endif %}
+            
+            <li class="{{ product_vendor | handleize }}" data-regex="{{ product_vendor | handleize }} {{ product_vendor }}">
+              {% comment %}Use collection url if possible{% endcomment %}
+              {% assign product_vendor_handle = product_vendor | handle %}
+              {% assign product_vendor_standardised = product_vendor_handle | append: '|' | prepend: '|' %}
+              {% if collections[product_vendor_handle].products.size > 0 %}
+                
+                {% if collections[product_vendor_handle] %}      
+                  {% unless assigned_vendors contains product_vendor_standardised %}
+                    <a href="{{ collections[product_vendor_handle].url }}{% if selected_department %}/{{ selected_department }}{% if selected_category %}+{{ selected_category }}{% endif %}{% else %}{% if selected_category %}/{{ selected_category }}{% endif %}{% endif %}">{{ collections[product_vendor_handle].title }}</a>
+                    {% assign assigned_vendors = assigned_vendors | append: product_vendor_standardised %}
+                  {% endunless %}
+                {% else %}
+                  {% capture constraint %}?{% if selected_department %}constraint={{ selected_department }}&{% endif %}{% endcapture %}
+                  {{ product_vendor | link_to_vendor | replace_first: '?', constraint }} <!-- Add "&constraint={{ selected_department }}" to the generated url -->
+                {% endif %}
+              {% endif %}
+            </li>
+          {% endif %}
+        {% endfor %}
+          </ul>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+  <div id="no-matching-designers" class="grid__item hide">
+    <p>No matching Designers found.</p>
+  </div>
+  <div id="back-to-top">
+    <a href="#top">{% include 'icon-arrow-up' %} Back to top</a>
+  </div>
+</div>

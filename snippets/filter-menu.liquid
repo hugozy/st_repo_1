@@ -1,0 +1,333 @@
+{% comment %}
+  Filter Menu brought to you by Shopify Power Tools
+{% endcomment %}
+{% assign pt_refine_text = 'Refine' %}
+{% assign pt_clear_text = 'clear' %}
+{% assign pt_view_all_text = 'view all' %}
+{% assign pt_collection_text = 'Collection' %}
+<div class="filter-menu filter-selected-{{ collection.handle }}{% for tag in current_tags %} filter-selected-{{ tag | handleize }}{% endfor %}">
+  <div class="filter-group filter-group-categories has_multiple_items" data-group="categories">
+    <h4>Category</h4>
+    <ul class="filter-menu-container nav-categories">
+      <li class="collection-container">
+        {% comment %}Create a nice name depending on what kind of collection you're looking at{% endcomment %}
+        {% if collection.handle contains 'boutique_' or collection.handle contains 'womens-' or collection.handle contains 'mens-' or collection.handle == 'sale' or collection.handle == 'women' or collection.handle == 'men' %}
+          <a href="{{ collection.url }}">All{% if collection.handle != "all" %}
+            {% if collection.handle contains "boutique_" %}
+              {{ collection.title | replace_first: "Boutique","From" }}
+            {% elsif collection.handle == 'sale' %}
+              Products on Sale
+            {% elsif collection.handle == 'women' or collection.handle == 'men' %}
+              {{ collection.title }}'s Products
+            {% else %}
+              {{ collection.title }}
+            {% endif %}
+          {% endif %}</a>
+        {% else %}
+          <a href="{{ collection.url }}">All</a>
+        {% endif %}
+      </li>
+      {% comment %}Create a single entry to tags separated by the | character, used for cross checking types{% endcomment %}
+      {% assign collection_tags_string = collection.all_tags | join: '|' | prepend: '|' | append: '|' | downcase | replace: ' ','-' %}
+      {% comment %}
+        Iterates through all types in the store, 
+        puts a tag filter in the categories link if a type exists in the collection tags
+      {% endcomment %}
+      {% for product_type in shop.types %}
+        
+        {% assign product_type_string = product_type | downcase | prepend: '|' | append: '|' | handleize | replace: ' ','-'%} 
+        {% if collection_tags_string contains product_type_string %}
+          <li class="collection-container">
+            {{ product_type | capitalize | link_to_tag: product_type }}
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% assign departments = "women,men" | split: ',' %}
+  {% comment %} Hide other items if one of them was selected {% endcomment %}
+  {% for t_gender in departments %}
+    {% if current_tags contains t_gender %}
+      {% assign departments = t_gender | split: ',' %}
+      {% break %}
+    {% endif %}
+  {% endfor %}
+
+  {% capture downcase_vendors %}{% for v in collections.all.all_vendors %}|{{ v | downcase | handleize }}|{% endfor %}{% endcapture %}
+  {% assign vendor_match = '|' | append: collection.handle | append: '|' %}
+  {% assign show_departments = false %}
+  
+  {% assign header_handle = "" %}
+  {% if downcase_vendors contains vendor_match or vendor_match == '|all|' %}
+    {% assign show_departments = true %}    
+  {% endif %}
+  
+  {% if show_departments %}
+    <div class="filter-group filter-group-departments has_multiple_items" data-group="departments">
+      <h4>{{ settings.department_title }} ** Gender **</h4>
+      <ul class="filter-menu-container nav-departments">
+        {% assign collection_tags_string = collection.all_tags | join: '|' %}
+        {% assign collection_tags_string = '|' | append: collection_tags_string | append: '|' | downcase %}
+        {% for department in departments %}
+          {% assign department_tags = collection.tags %}
+          {% assign department_string = department | handleize %}
+          {% assign match_string = '|' | append: department_string | append: '|' %}
+          {% if collection_tags_string contains match_string %}        
+            <li class="collection-container filter-active-{{ filter_collection.handle }} {% if tag_list contains menu_item %}active{% endif %} {% if current_tags contains department %}selected{% endif %}">
+              <div class="collection-name">
+                {% assign url = '/collections/' | append: collection.handle | append: '/' %}
+                {% if current_tags.size > 0 %}
+                  {% assign tags_added = 0 %}
+                  {% assign refined_tags = '' %}
+                  {% for c_tag in current_tags %}
+                     {% unless departments contains c_tag %}
+                      {% assign refined_tags = refined_tags | append: c_tag | append: ',' %}
+                     {% endunless %}
+                  {% endfor %}
+                
+                  {% assign refined_tags = refined_tags | split: ',' %}
+                  {% for tag in refined_tags %}
+ 
+                    {% unless forloop.first %}
+                        {% assign url = url | append: '+' %}
+                    {% endunless %}  
+                    {% assign url = url | append: tag %}
+                    {% assign tags_added = tags_added | plus: 1 %}
+
+                  {% endfor %}
+                
+                  {% unless current_tags contains department_string %}
+                    {% unless tags_added == 0 %}
+                      {% assign url = url | append: '+' %}  
+                    {% endunless %}
+                    {% assign url = url | append: department_string %}
+                  {% endunless %}
+                {% else %}
+                  {% assign url = url | append: department_string %}
+                {% endif %}
+                
+                <div data-deps='{{ department_tags }}' data-dep-string='{{ department_string }}' data-ref-tags='{{ refined_tags }}' data-col-tags='{{ collection_tags_string }}' data-cur-tags='{{ current_tags }}' data-tag-list='{{ tag_list }}'></div>
+                {% if department_tags contains department_string %}
+                  <a href="{{ url | replace: ' ', '-' }}" title="{{ department | capitalize }}"><i class="check-icon"></i> {{ department | capitalize }}</a>
+                {% endif %}
+                
+              </div>
+            </li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+  
+  {% assign header_handle = '-designer' %}
+  
+  {% unless collection.handle != nil and template contains 'collection' %}
+    {% for menu_header in downcase_vendors %}
+      {% assign menu_items = menu_header.last | split: ',' %}
+      <div class="filter-group filter-group{{ header_handle }}">
+        <h4>{{ header_handle | replace: '-','' | upcase }}</h4><h5>short block</h5>
+        <ul class="filter-menu-container nav{{ header_handle }}">
+          {% for menu_item in menu_items %}
+            {% assign filter_collection = collections[menu_item] %}
+            {% if filter_collection and filter_collection.all_products_count != '' and filter_collection.all_products_count > 0 and filter_collection.title != nil and filter_collection.title != '' %}          
+              <li class="collection-container filter-active-{{ filter_collection.handle }} {% if tag_list contains menu_item %}active{% endif %} {% if current_tags contains menu_item or current_collection_handle == menu_item %}selected{% endif %}">
+                <div class="collection-name">
+                  <a href="/collections/{{ menu_item }}" title="{{ filter_collection.title | escape }}"><i class="check-icon"></i> {{ filter_collection.title | escape | capitalis}}</a>{% comment %}{% unless current_tags %}<span class="collection-count">({{ filter_collection.all_products_count }})</span>{% endunless %}{% endcomment %}
+                </div>
+              </li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+      </div>
+    {% endfor %}
+  {% else%}
+    {% assign tag_list = collections.all.tags %}
+    {% assign useable_tag_list = collection.tags %}
+    {% assign current_collection_handle = collection.handle %}
+    {% assign displayed_collection_handles = '|' %}
+    {% for menu_header in downcase_vendors %}
+      {% if settings.vendor_on_vendor %}
+        {% comment %}This will remove the designers filter from designer pages and the boutiques filter from boutiques pages{% endcomment %}
+          {% assign vendor_match = '|' | append: collection.handle | append: '|' %}
+          {% if collection.handle contains 'boutique_' and header_handle == '-boutique' %}
+            {% continue %}
+          {% elsif downcase_vendors contains vendor_match and header_handle == '-designer' %}
+            {% continue %}
+          {% endif %}
+        {% comment %}END OF: This will remove the designers filter from designer pages and the boutiques filter from boutiques pages{% endcomment %}
+      {% endif %}
+      {% assign has_items = false %}
+      {% assign has_multiple_items = false %}
+      {% assign has_selected = false %}
+      {% assign current_selected = '|' %}
+      {% assign menu_items = downcase_vendors | split: '|' %}
+      {% for menu_item in menu_items %}
+        {% assign filter_collection = collections[menu_item] %}
+        {% if tag_list contains menu_item or current_tags contains menu_item or current_collection_handle == menu_item %}
+          {% if has_items %}
+            {% assign has_multiple_items = true %}
+          {% endif %}
+          {% assign has_items = true %}
+          {% if current_tags contains menu_item or current_collection_handle == menu_item %}
+            {% assign has_selected = true %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+      {% if has_items %}
+        {% assign group_name = header_handle | replace_first: '-', '' %}
+        <div class="filter-group filter-group{{ header_handle }} {% if has_selected %}has_group_selected{% endif %} {% if has_multiple_items %}has_multiple_items{% else %}has_single_item{% endif %}" data-group="{{ group_name }}">
+          <h4>{{ header_handle | replace: '-','' | upcase }} </h4> 
+          <div class="filter-menu-container">
+            {% if has_multiple_items and header_handle == '-designer' %}
+              <form action="#" method="get" class="filter-search-form" novalidate>
+                <input type="text" class="filter-search-input" style="display:none;" required autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Type {{ header_handle | remove_first: '-' | capitalize}} Name" />
+                <button type="reset" class="btn-clear text-link" style="display:none;">
+                  {% include 'icon-close' %}
+                  <span class="icon__fallback-text">Clear</span>
+                </button>
+              </form>
+            {% endif %}
+            
+            <ul class="nav{{ header_handle }} {% if has_selected %}has_selected{% endif %}">
+              {% assign already_placed = "" %}
+              {% for menu_item in menu_items %}
+                {% assign menu_item_handle = menu_item | handle %}
+                {% assign menu_item_formatted = "|" | append: menu_item_handle | append: "|" %}      
+                
+                
+              
+                {% assign filter_collection = collections[menu_item] %}
+                {% assign lowercase_menu_item = menu_item | downcase %}
+                {% if filter_collection and filter_collection.title != nil and filter_collection.title != '' %}
+                  {% assign display_tag = false %}
+                  {% if useable_tag_list contains menu_item or current_tags contains menu_item or current_collection_handle == menu_item %}
+                    {% assign display_tag = true %}
+                  {% elsif tag_list contains menu_item %}
+                    {% if current_tags contains menu_item or current_collection_handle == menu_item %}
+                      {% assign display_tag = true %}
+                    {% endif %}
+                  {% endif %}
+
+                  {% if display_tag %}
+
+                    {% if current_tags contains menu_item or current_collection_handle == menu_item %}
+                      {% assign current_selected = current_selected | append: menu_item | append: '|' %}
+                    {% endif %}
+                    {% assign displayed_collection_handles = displayed_collection_handles | append: menu_item | append: '|' %}
+                      {% unless useable_tag_list contains menu_item %}
+                        {% unless current_tags contains menu_item %}
+                          {% continue %}
+                        {% endunless %}
+                      {% endunless %}
+                      {% if has_selected %}
+                        {% unless current_tags contains menu_item or current_collection_handle == menu_item %}
+                          {% continue %}
+                        {% endunless %}
+                      {% endif %}
+
+                      {% unless already_placed contains menu_item_formatted %}
+                      <li class="collection-container filter-active-{{ filter_collection.handle }}{% if tag_list contains menu_item %} active{% endif %}{% if current_tags contains menu_item or current_collection_handle == menu_item %} selected{% endif %}{% unless useable_tag_list contains menu_item %} no_products{% endunless %}" data-tag="{{ menu_item }}" data-regex="{{ filter_collection.title | handleize}} {{ filter_collection.title }}">
+                      <div class="collection-name">
+                        {% if header_handle == '-boutique' %}
+                          {% assign filter_collection_title = filter_collection.title | capitalize | remove_first: 'Boutique ' %}
+                        {% else %}
+                          {% assign filter_collection_title = filter_collection.title %}
+                        {% endif %}
+                        {% if current_tags contains menu_item %}
+{% comment %}Used to remove a tag{% endcomment %}
+                          {{ '<i class="check-icon"></i> ' | append: filter_collection_title | link_to_remove_tag: menu_item }}
+                        {% elsif current_collection_handle == menu_item and menu_item contains 'boutique_' %}
+{% comment %}Used to remove a boutique when on a boutique page{% endcomment %}
+                          {% assign has_designer = false %}
+                          {% assign remaining_tags = '' %}
+                          {% assign lowercase_vendors = shop.vendors | join: '|' | downcase %}
+                          {% for tag in current_tags %}
+                            {% if lowercase_vendors contains tag %}
+                              {% assign has_designer = tag %}
+                            {% elsif remaining_tags.size == 0 %}
+                              {% assign remaining_tags = tag %}
+                            {% else %}
+                              {% assign remaining_tags = remaining_tags | append: '|' | append: tag %}
+                            {% endif %}
+                          {% endfor %}
+                        
+                          {% if lowercase_vendors contains filter_collection_title %}
+                            {% if has_designer %}
+                              {% assign remaining_tags = remaining_tags | split: '|' %}
+                              <a href="/collections/{{ has_designer }}{% if remaining_tags %}/{{ remaining_tags | join: '+' }}{% endif %}" title="{{ filter_collection_title | escape }}"><i class="check-icon"></i> {{ filter_collection_title | escape }}</a>
+                            {% else %}
+                              <a href="/collections/all{% if current_tags %}/{{ current_tags | join: '+' }}{% endif %}" title="{{ filter_collection_title | escape }}"><i class="check-icon"></i> {{ filter_collection_title | escape }}</a>
+                            {% endif %}
+                          {% endif %}
+                        {% elsif current_collection_handle == menu_item and header_handle == '-designer' %}
+{% comment %}Used to remove a designer on a designer page{% endcomment %}
+                          {% assign has_boutique = false %}
+                          {% assign remaining_tags = '' %}
+                          {% for tag in current_tags %}
+                            {% if tag contains "boutique_" %}
+                              {% assign has_boutique = tag %}
+                            {% elsif remaining_tags.size == 0 %}
+                              {% assign remaining_tags = tag %}
+                            {% else %}
+                              {% assign remaining_tags = remaining_tags | append: '|' | append: tag %}
+                            {% endif %}
+                          {% endfor %}
+                          {% if has_boutique %}
+                            {% assign remaining_tags = remaining_tags | split: '|' %}
+                            <a href="/collections/{{ has_boutique }}{% if remaining_tags %}/{{ remaining_tags | join: '+' }}{% endif %}" title="{{ filter_collection_title | escape }}"><i class="check-icon"></i> {{ filter_collection_title | escape }}</a>
+                          {% else %}
+                            <a href="/collections/all{% if current_tags %}/{{ current_tags | join: '+' }}{% endif %}" title="{{ filter_collection_title | escape }}"><i class="check-icon"></i> {{ filter_collection_title | escape }}</a>
+                          {% endif %}
+                        {% elsif current_collection_handle == menu_item %}
+{% comment %}Used to remove a collection{% endcomment %}
+                          <a href="/collections/all{% if current_tags %}/{{ current_tags | join: '+' }}{% endif %}" title="{{ filter_collection_title | escape }}"><i class="check-icon"></i> {{ filter_collection_title | escape }}</a>
+                        {% elsif current_collection_handle == 'all' and menu_item contains 'boutique_' %}
+{% comment %}Used to change to a boutique page from all page{% endcomment %}
+                          <a href="/collections/{{ menu_item }}{% if current_tags %}/{{ current_tags | join: '+' }}{% endif %}" title="{{ filter_collection_title | escape }}"><i class="check-icon"></i> {{ filter_collection_title | escape }}</a>{% comment %}{% unless current_tags %}<span class="collection-count">({{ filter_collection.all_products_count }})</span>{% endunless %}{% endcomment %}
+                        {% elsif current_collection_handle == 'all' and header_handle == '-designer' %}
+{% comment %}Used to change to a designer page from all page{% endcomment %}
+                          <a href="/collections/{{ menu_item }}{% if current_tags %}/{{ current_tags | join: '+' }}{% endif %}" title="{{ filter_collection_title | escape }}"><i class="check-icon"></i> {{ filter_collection_title | escape }}</a>{% comment %}{% unless current_tags %}<span class="collection-count">({{ filter_collection.all_products_count }})</span>{% endunless %}{% endcomment %}
+                        {% elsif current_collection_handle == 'all' %}
+{% comment %}Used to add a tag on the all page{% endcomment %}
+                          <a href="/collections/all/{{ menu_item }}{% if current_tags %}+{{ current_tags | join: '+' }}{% endif %}" title="{{ filter_collection_title | escape }}"><i class="check-icon"></i> {{ filter_collection_title | escape }}</a>{% comment %}{% unless current_tags %}<span class="collection-count">({{ filter_collection.all_products_count }})</span>{% endunless %}{% endcomment %}
+                        {% else %}
+{% comment %}Used to add a tag{% endcomment %}
+                          {{ '<i class="check-icon"></i> ' | append: filter_collection_title | link_to_add_tag: menu_item }}
+                        {% endif %}
+                      </div>
+                    </li>
+                      {% endunless %}
+                      {% assign already_placed = already_placed | append: menu_item_formatted %}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+            </ul>
+            {% unless '|' == current_selected %}
+              {% assign current_collection_handle_sep = current_collection_handle | prepend: '|' | append: '|' %}
+              {% if current_selected contains current_collection_handle_sep %}
+                {% assign current_collection_handle_sep = 'all' %}
+                {% assign current_selected = current_selected | replace: current_collection_handle_sep, '|' %}
+              {% else %}
+                {% assign current_collection_handle_sep = collection.handle %}
+              {% endif %}
+              {% assign cleared_tags = current_tags | join: '|'  | prepend: '|' | append: '|' %}
+              {% assign current_selected_split = current_selected | split: '|' %}
+              {% for current_selected_tag in current_selected_split %}
+                {% unless '' == current_selected_tag %}
+                  {% assign current_selected_tag = current_selected_tag | prepend: '|' | append: '|' %}
+                  {% if cleared_tags contains current_selected_tag %}
+                    {% assign cleared_tags = cleared_tags | replace: current_selected_tag, '|' %}
+                  {% endif %}
+                {% endunless %}
+              {% endfor %}
+              {% assign cleared_tags = cleared_tags | replace: '||||', '|' | replace: '|||', '|' | replace: '||', '|' | remove_first: '|' | split: '|' | join: '+' %}
+              {% unless current_collection_handle_sep %}
+                {% assign current_collection_handle_sep = 'all' %}
+              {% endunless %}
+            {% endunless %}
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% endunless %}
+</div>
